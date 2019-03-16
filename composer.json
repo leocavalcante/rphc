@@ -1,0 +1,19 @@
+{
+    "name": "leocavalcante/rphc",
+    "description": "PHP-to-PHP RPC Framework",
+    "type": "library",
+    "license": "Apache-2.0",
+    "authors": [
+        {
+            "name": "leocavalcante",
+            "email": "lc@leocavalcante.com"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "RPHC\\": "src/"
+        }
+    }
+}
