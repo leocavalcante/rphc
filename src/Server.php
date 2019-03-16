@@ -2,50 +2,42 @@
 
 namespace RPHC;
 
-class Server
+class Server extends Peer
 {
-    public $host;
-    public $port;
-
     private $server;
-    private $handlers;
+    private $handlers = [];
 
-    public function __construct(string $host = '127.0.0.1', int $port = 9601)
-    {
-        $this->host = $host;
-        $this->port = $port;
-        $this->handlers = [];
-        $this->init();
-    }
-
-    public function handle(string $message, callable $handler): void
-    {
-        if (!array_key_exists($message, $this->handlers)) {
-            $this->handlers[$message] = [];
-        }
-
-        $this->handlers[$message][] = $handler;
-    }
-
-    public function onReceive($server, $fd, $fromId, $data)
-    {
-        $message = \igbinary_unserialize($data);
-        $className = \get_class($message);
-        $handlers = $this->handlers[$className];
-
-        foreach ($handlers as $handler) {
-            $server->send($fd, \igbinary_serialize($handler($message)));
-        }
-    }
-
-    public function start()
-    {
-        $this->server->start();
-    }
-
-    private function init()
+    protected function init(): void
     {
         $this->server = new \Swoole\Server($this->host, $this->port);
+        $this->server->set(['open_eof_split' => true, 'package_eof' => Packet::EOF]);
+
         $this->server->on('receive', [$this, 'onReceive']);
+    }
+
+    public function onReceive($server, $fd, $fromId, $data): void
+    {
+        $income = Packet::unpack($data);
+
+        $message = $income->getMessage();
+        $messageClass = \get_class($message);
+
+        $handler = $this->handlers[$messageClass];
+        $response = $handler($message);
+
+        $outcome = new Packet($response, $income->getId());
+
+        $server->send($fd, Packet::pack($outcome));
+    }
+
+    public function handle(string $messageClass, callable $handler): Server
+    {
+        $this->handlers[$messageClass] = $handler;
+        return $this;
+    }
+
+    public function start(): void
+    {
+        $this->server->start();
     }
 }
