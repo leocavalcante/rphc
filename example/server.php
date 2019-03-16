@@ -3,27 +3,35 @@
 require_once __DIR__.'/../vendor/autoload.php';
 require_once __DIR__.'/both.php';
 
-use RPHC\Server;
+use RPHC\Message;
+use RPHC\Result;
+use function RPHC\{server, success, failure};
 
 function ekko(Ekko $ekko): Ekko
 {
     return new Ekko($ekko->getMessage());
 }
 
-function calc(Calc $calc): int
+function calc(Calc $calc): Result
 {
     switch ($calc->getOp()) {
         case Calc::OP_SUM:
-            return $calc->getLt() + $calc->getRt();
+            return success($calc->getLt() + $calc->getRt());
+        break;
 
-        case Calc::OP_MUL:
-            return $calc->getLt() + $calc->getRt();
+        case Calc::OP_DIV:
+            if ($calc->getRt() == 0) {
+                return failure('Cant divide by 0');
+            }
+
+            return success($calc->getLt() / $calc->getRt());
+        break;
     }
+
+    return failure('Noop');
 }
 
-$server = new Server('127.0.0.1', 9601);
-$server->handle(Ekko::class, 'ekko');
-$server->handle(Calc::class, 'calc');
-
-echo "Listening on {$server->host}:{$server->port}\n";
-$server->start();
+server('127.0.0.1', 9603)
+    ->handle(Ekko::class, 'ekko')
+    ->handle(Calc::class, 'calc')
+    ->start();

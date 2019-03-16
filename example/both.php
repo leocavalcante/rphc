@@ -2,7 +2,9 @@
 
 require_once __DIR__.'/../vendor/autoload.php';
 
-class Ekko
+use RPHC\Message;
+
+class Ekko implements Message
 {
     private $message;
 
@@ -17,10 +19,10 @@ class Ekko
     }
 }
 
-class Calc
+class Calc implements Message
 {
     const OP_SUM = 'sum';
-    const OP_MUL = 'mul';
+    const OP_DIV = 'div';
 
     private $op;
     private $lt;

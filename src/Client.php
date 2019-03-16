@@ -2,32 +2,63 @@
 
 namespace RPHC;
 
-class Client
+class Client extends Peer
 {
-    public $host;
-    public $port;
+    private $client;
+    private $onConnected;
+    private $callbacks = [];
 
-    public function __construct(string $host, int $port)
+    protected function init(): void
     {
-        $this->host = $host;
-        $this->port = $port;
+        $this->client = new \Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
+        $this->client->set(['open_eof_split' => true, 'package_eof' => Packet::EOF]);
+
+        $this->client->on('connect', [$this, 'onConnect']);
+        $this->client->on('receive', [$this, 'onReceive']);
+        $this->client->on('error', [$this, 'onError']);
+        $this->client->on('close', [$this, 'onClose']);
     }
 
-    public function send($message, callable $callback): void
+    public function send(Message $message, callable $callback): void
     {
-        $client = new \Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
+        $packet = new Packet($message);
 
-        $client->on('connect', function (\Swoole\Client $client) use ($message) {
-            $client->send(\igbinary_serialize($message));
-        });
+        $this->callbacks[$packet->getId()] = $callback;
 
-        $client->on('receive', function (\Swoole\Client $client, $message) use ($callback) {
-            $callback(\igbinary_unserialize($message));
-            $client->close();
-        });
+        $this->client->send(Packet::pack($packet));
+    }
 
-        $client->on('error', function (\Swoole\Client $client) {});
-        $client->on('close', function (\Swoole\Client $client) {});
-        $client->connect($this->host, $this->port);
+    public function onReceive(\Swoole\Client $client, string $data): void
+    {
+        $packet = Packet::unpack($data);
+
+        $callback = $this->callbacks[$packet->getId()];
+
+        $callback($packet->getMessage());
+    }
+
+    public function connect(callable $onConnected): void
+    {
+        $this->onConnected = $onConnected;
+        $this->client->connect($this->host, $this->port);
+    }
+
+    public function onConnect(\Swoole\Client $client): void
+    {
+        $onConnected = $this->onConnected;
+        $onConnected($this);
+    }
+
+    public function close(): void
+    {
+        $this->client->close();
+    }
+
+    public function onError(\Swoole\Client $client): void
+    {
+    }
+
+    public function onClose(\Swoole\Client $client): void
+    {
     }
 }
