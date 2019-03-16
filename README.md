@@ -105,6 +105,9 @@ server('127.0.0.1', 9603)
 ### Write a client
 
 ```php
+use RPHC\Result;
+use function RPHC\{client, send, success, failure};
+
 client('127.0.0.1', 9603)->connect(function () {
     send(new Ekko('Hello world'), function (Ekko $ekko) {
         echo $ekko->getMessage()."\n";
